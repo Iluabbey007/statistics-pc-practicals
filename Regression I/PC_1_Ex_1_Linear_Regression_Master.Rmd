@@ -1,0 +1,262 @@
+---
+title: "PC Practical: Linear Regression I"
+output: html_document
+---
+
+# Practical 1: Simple linear regression
+
+For 96 fish (dojo loaches and goldfish) the resistance against the poison EI-43,064 was tested by placing each fish separately in a barrel with 2 liters of water and a certain dose (in mg) of the poison. Apart from the survival time in minutes (the outcome, `minsurv`), the weight of the fish (in gram) was measured. 
+
+The research questions that we want to investigate for this dataset are the following. In this practical we will be able to answer the first question, highlighted in bold. The remaining three questions will be answered in the next practical.
+
+1. **What is the association between dose and survival time?**
+2. Will, for the same dose, a higher weight of the fish yield a higher survival time?
+3. Are dojo loaches more resistant to the poison?
+4. Is the effect of the dose on the survival time different for dojo loaches and goldfish?
+
+First read in the dataset poison.dat via `read.csv`. If necessary, change the directory to the folder where `poison.dat` is saved.
+```{r}
+poison <- read.csv("poison.dat", sep = "")
+```
+
+In simple linear regression, the dependent variable is modeled as a function of only one independent variable. In other words, a simple regression model is of the form  $E(Y) = \beta_0 + \beta_1X$, where $\beta_0$ (the intercept) and $\beta_1$ (the slope) are parameters that need to be determined from the data. Moreover, $Y$ is the dependent variable (or response) and $X$ the independent variable (or predictor).
+
+# What is the association between dose and survival time?
+
+## 1. Plot of dose against survival time
+
+Verify whether it is realistic to assume a linear association between dose and survival time by making a scatter plot of dose against survival time. Add the best- fitting curve and the best-fitting line to plot.
+
+```{r}
+plot(x = poison$dose, y = poison$minsurv, xlab = "Dose", ylab = "Survival time")
+
+# Fit a curve through the points cloud (solid line)
+lines(lowess(poison$dose, poison$minsurv), lty = 1)  # lty = 1 draws a solid line
+
+# Fit a line through the point cloud using least squares method (dotted line)
+abline(lsfit(poison$dose, poison$minsurv), lty = 2) # lty = 2 draws a dotted line, If this option is not specified, a solid line is drawn
+```
+
+The curve is relatively well approximated by a line. Based on the figure, we can conclude that it is realistic to assume a linear association between `minsurv` and `dose`.
+
+## 2. Modeling the mean survival time
+
+Based on the previous plot, a meaningful model for the mean survival time in function of the dose is given by $E(Y|X = x) = \beta_0 + \beta_1 x$, with $X$ the dose and $Y$ the survival time.
+
+## 3. Linear regression analysis
+
+Perform a linear regression analysis to estimate the parameters in the model.
+
+```{r}
+# Fit a linear regression model using 'minsurv' as dependent and 'dose' as dependent variable
+
+# To obtain only the estimated coefficients of the linear regression model, use the command
+model <- lm(minsurv ~ dose, data = poison) 
+# If, next to that, you would also like to know (among others) the standard errors and p-values of these estimates, use the command
+summary(model)
+```
+
+Now, verify the assumptions that are needed to perform a linear regression analysis and trust its results. Recall that these assumptions are given by:
+
+ - Independence of observations
+ - Normally distributed residuals
+ - Linearity between response and predictor (implies that the residuals are distributed around zero)
+ - Homoscedasticity.
+
+
+### 3(a). Linearity between response and predictor
+
+Is the assumption of linearity realistic? This can be verified in 2 ways. The first one is by using the scatterplot we made in question 1. If the curve is more or less linear, you can conclude that the linearity assumption seems realistic. A better way is to make a residual plot and check if the points in this plot are randomly scattered around the line $Y = 0$. You cannot see any relation between the fitted values (or the predictor values) and the residuals. A residual plot is a scatterplot with on the X-axis the fitted values (or predictor values), and on the Y -axis the residuals. These values can be retrieved by the commands `fitted(model)` and `resid(model)`.
+
+```{r}
+# Scatter plot of fitted values versus residuals.
+plot(fitted(model), resid(model))
+
+# Horizontal line through 0. The residuals should be distributed normally across this line.
+abline(h = 0, lty = 2) 
+
+# The best fitting line. This line should approximate reasonably well the horizontal line drawb previously.
+lines(lowess(fitted(model), resid(model)))
+```
+
+If the curve approximates the horizontal line relatively well, we can conclude that the linearity assumption holds.
+
+### 3(b). Homoskedasticity
+
+Is the assumption of homoscedasticity met? To verify this, we make a scatter plot of the squared residuals in function of the fitted values (or predictor values):
+`plot(fitted(model), resid(model)^2)`. If the homoskedasticity assumption is met, then the squared residuals should not "fan out" but instead have constant variance along the line.
+
+```{r}
+# b. Homoscedasticity: doubtful...
+plot(fitted(model), resid(model)^2)
+```
+
+Another way of obtaining the same analysis is through a plot where the $x$-values are the so-called *squared residuals*:
+
+```{r}
+standardisedResiduals = resid(model)/summary(model)$sigma
+plot(x = fitted(model), y = sqrt(abs(standardisedResiduals)))
+lines(lowess(x = fitted(model), y = sqrt(abs(standardisedResiduals))), col = "red")
+```
+
+
+### 3(c). QQ-plot for the residuals
+
+Are the residuals normally distributed? This will be verified using a QQ-plot for the residuals.
+
+```{r}
+# c. Normally distributed residuals: 
+qqnorm(resid(model))
+qqline(resid(model)) # long tail on right + short tail on left. Not really OK
+```
+
+Plot all diagrams together:
+```{r}
+# Checking multiple assumptions simultaneously for a model:
+par(mfrow = c(2,2))
+plot(model)
+``` 
+
+**Conclusions:** The assumption of homoscedasticity is doubtful and the residuals do not follow a normal distribution. We could transform the dependent variable in hope of meeting the assumptions after all.
+
+## 4. Applying a transformation to the outcome
+
+If not all the previous assumptions hold, an appropriate transformation of either the dependent or the independent variable has to be applied and a linear regression analysis on the transformed variable(s) has to be performed. Verify if here all the assumptions hold. 
+
+Try for yourself certain transformations of the dependent `minsurv` variable, refit a linear regression model and check if the assumptions seem more plausible. Common transformations are the square root, the inverse and the logarithmic transformation.
+
+<!-- SOLUTION
+```{r}
+model_log <- lm(log(minsurv) ~ dose, data = poison)
+par(mfrow = c(2, 2))
+plot(model_log)
+summary(model_log)
+
+model_inv <- lm(1 / minsurv ~ dose, data = poison)
+par(mfrow = c(2, 2))
+plot(model_inv)
+summary(model_inv)
+```
+-->
+
+## 5. Model interpretation
+
+Now that we have constructed an appropriate model, we can provide an interpretation for the slope of this model. Recall that the slope of the regression line tells you by how many units the outcome increases or decreases, when the predictor is increased by one unit. For a transformed model this interpretation is still valid, but you need to take into account the transformation as well.
+
+For this exercise, it helps if you write down the regression model explicitly, so that you can keep the original and the transformed variable apart.
+
+<!-- PROBLEM
+- On the transformed scale (for the outcome): if the dose increases by one unit, then ... increases/decreases by ...
+- On the original scale: if ... increases by ..., then ...
+-->
+
+<!-- SOLUTION
+
+Final model: $log(minsurv_i) = 2.105 - 0.5112 dose_i + \epsilon_i$
+
+- On the transformed scale (for the outcome): if the dose increases by one unit, then the mean of the logarithm of the survival time decreases by 0.5112.
+- On the original scale: if the dose increases by one unit, then the mean of the survival time decreases by **a factor of 0.60** (in other words, for each unit increase in the dose, the mean survival time decreases by 40%).
+
+Due to the transformation, we model the mean of the logarithm of the response variable, and we interpret the parameters in this context, as above. If we take the exponential of the estimated parameters, then these apply in terms of the geometric mean of the response variable on the original scale, since the geometric mean of $Y$ is equal to
+
+$exp\{n^{-1} \sum_{i=1}^n log(y_i)  \}.$
+
+Remark that the `log` transformation in the statistic typically indicates the natural logarithm (i.e., with base $e$ and not with base $10$). This way we then also interpret the parameters:
+
+$\widehat{minsurv}_i = exp(2.105 - 0.5112 dose_i) = \frac{e^{2.105}}{e^{0.5112 dose}}$
+
+Therefore, if the dose of the poison increases with one miligram, then the geometric mean of the survival time decreases with a **factor** of
+$1/e^{0.5112} = 0.60$.
+
+To get some more hands-on experience with this interpretation, try the following:
+
+ - Calculate the expected geometric mean of the survival time for a dose of 1 miligram
+ - Do the same for a dose of 2 miligram
+ - Compare these values. What do you notice?
+
+-->
+
+## 6. Confidence interval for the slope
+
+Give a 95% confidence interval for the effect of the dose on the expected outcome and test if this effect is significantly different from 0 at the 5% significance level. In R we retrieve this interval by `condint(model)`.
+
+```{r}
+logModel <- lm(log(minsurv) ~ dose, data = poison)
+confint(logModel) # 95% CI
+summary(logModel) # p-value for tests vs 0
+```
+
+Note the link between CI and p-value!
+
+## 7. Analysis of variance
+
+Perform a variance analysis and interpret the obtained p-value.
+
+```{r}
+anova(logModel)
+```
+
+How do we interpret the p-value?
+
+<!-- SOLUTION
+The residual sum of squares is significantly reduced when adding dose as an independent variable, compared with only an intercept (the overall mean).
+-->
+
+## 8. Geometric mean of the survival time
+
+Estimate the geometric mean of the survival time for a dose of 2 mg. Compute the accompanying 95% confidence interval.
+
+Hint: to use the `predict` function, you will first need to create a new dataset with one variable, `dose`, for which you enter the observation `2`.
+
+```{r}
+
+new_data <- data.frame(dose = c(2))
+# Prediction on the log scale: predict mean(log(y))
+predict(logModel, new_data, interval = "c") # interval = "c" indicates we want to obtain confidence intervals
+
+# Geometric mean: exp(mean(log(y)))
+exp(predict(logModel, new_data, interval = "c")) 
+```
+
+Remark that $e^{0.9122891}=2.490016$ and $e^{1.252174}=3.497941$.
+
+## 9. Multiple correlation coefficient
+
+Consider the model summary below and in particular the value of the multiple correlation coefficient. How would you interpret this value?
+
+```{r}
+summary(logModel)
+```
+
+<!-- SOLUTION
+The dose variable (i.e., the regression line) succeeds in explaining 10.88% of the total variation in the response variable $Y$.
+-->
+
+## 10. Higher-order terms
+
+Perform an appropriate test to see is the dose effect is nonlinear (e.g., quadratic). To this end we first create a new variable containing the squares of the doses and then add this variable as a predictor to the linear regression model we already had.
+
+```{r}
+logModel2 <- lm(log(minsurv) ~ dose + I(dose^2), data = poison)
+summary(logModel2)
+```
+
+## 11. Significance of the higher-order terms
+
+Perform for this new model again a variance analysis and interpret the p-value.
+
+```{r}
+anova(logModel2)
+```
+
+Performing ANOVA on a multiple regression model will **sequentially** test the predictors.
+
+p-value for `dose`: *Does the variable dose explain a significant proportion of the variation in the response variable?*
+
+p-value for `I(dose^2)`: *Does the square of the variable dose explain a significant proportion of the variation in the response variable **given that the variable dose is already included in the model**?*
+
+<!-- SOLUTION
+The effect of the squared dose on the mean logarithm of the survival time in minutes for dojo loaches and goldfish is **not significantly** different from zero at the **5\% significance level (p = 0.63)**, given that the dose effect is already present in the model. Adding the squared dose effect does not contribute significantly to explaining the variation in survival time, given that the dose effect is already present in the model.
+-->
+
+

@@ -1,0 +1,118 @@
+---
+title: "PC Practical: Linear Regression I"
+output: html_document
+---
+
+# Practical 2: multiple linear regression
+
+In this problem set we will continue our investigation of the dojo fish dataset. Through the construction of a multiple regression model, we will investigate the remaining three research questions, highlighted in bold.
+
+1. What is the association between dose and survival time?
+2. **Will, for the same dose, a higher weight of the fish yield a higher survival time?**
+3. **Are dojo loaches more resistant to the poison?**
+4. **Is the effect of the dose on the survival time different for dojo loaches and goldfish?**
+
+```{r}
+poison <- read.csv("poison.dat", sep="")
+```
+
+# Effect of weight/type/dose on survival time
+
+## 1. Constructing a multiple regression model
+
+Fit 2 regression models: one with the dose and weight and one with dose and the type of fish. Check which variable (`weight` or `type`) has the largest $t$-value and keep this variable in the model, on condition that that variable is significantly associated with the outcome. Then verify whether the other variable has an additional significant effect.
+
+```{r}
+modela <- lm(log(minsurv) ~ dose + weight, data = poison)
+modelb <- lm(log(minsurv) ~ dose + type, data = poison)
+summary(modela) 
+summary(modelb) 
+```
+
+
+Does `type` explain significant extra variation in the response, given that `dose` and `weight` are already in the model?
+
+
+What is the difference between the p-value from `summary(modelc)` and `anova(modelc)`?
+
+
+
+## 2. Higher-order terms
+
+Investigate if there are significant higher-order terms (interactions and/or quadratic effects). 
+
+### 2(a). Quadratic effect for weight
+
+
+### 2(b). Interaction between dose and type
+
+```{r}
+modele <- lm(log(minsurv) ~ dose + weight + type + dose:type, data = poison)
+summary(modele) #not significant -> leave interaction out of model
+```
+
+
+Final model:
+
+```{r}
+model_final <- lm(log(minsurv) ~ dose + weight + type, data = poison)
+```
+
+The model selection procedure which we used here is called "forward selection":
+we add variables to the model to see if they are significant. If this is the case we leave them in the model, if not we leave them out. In every step we look at different terms and keep the most significant (highest $t$-value or smallest $p$-value).
+
+## 3. Linear regression assumptions
+
+Report the final model with the regression coefficients and verify the assumptions made for applying this regression analysis.
+
+**Check all the assumptions!**
+
+```{r}
+par(mfrow=c(2,2))
+plot(model_final)
+par(mfrow=c(1,1))
+plot(x=fitted(model_final),y=resid(model_final)^2)
+```
+
+
+## 4. Influence dose/weight/type of fish on survival time
+
+Interpret the estimated parameters, in other words, describe to what extent the dose, the weight of the fish, and the type of fish have an influence on the survival time of the fish.
+
+```{r}
+summary(model_final)
+```
+
+ - a. Interpretation of the dose estimate:
+
+For fish of **the same species** and **the same weight** the mean of the
+natural logarithm of the survival time is estimated to decrease with 0.6, with
+every increase of the dose of the poison with 1 mg.
+
+ - Or after backtransformation:
+
+
+ - b. Interpretation of the weight estimate:
+
+For fish which weigh 1 gram more than the other fish of **the same species** and
+which were treated with **the same dose of poison**, the mean natural logarithm
+of the survival time is estimated to be 0.82 higher.
+
+ - Or after backtransformation:
+
+
+ - c. Interpretation of the type estimate (given that 0 codes for dojo loaches
+   and 1 for goldfish):
+
+
+ - Or after backtransformation:
+
+
+## 5. Multiple correlation coefficient
+
+What can you conclude from the multiple correlation coefficient?
+
+The multiple correlation coefficient $R^2$ is:
+
+$R^2 = \frac{SS_{Regression}}{SS_{Total}}$
+

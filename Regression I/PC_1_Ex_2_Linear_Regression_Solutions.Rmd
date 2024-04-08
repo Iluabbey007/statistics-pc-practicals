@@ -1,0 +1,215 @@
+---
+title: "PC Practical: Linear Regression I"
+output: html_document
+---
+
+# Practical 2: multiple linear regression
+
+In this problem set we will continue our investigation of the dojo fish dataset. Through the construction of a multiple regression model, we will investigate the remaining three research questions, highlighted in bold.
+
+1. What is the association between dose and survival time?
+2. **Will, for the same dose, a higher weight of the fish yield a higher survival time?**
+3. **Are dojo loaches more resistant to the poison?**
+4. **Is the effect of the dose on the survival time different for dojo loaches and goldfish?**
+
+```{r}
+poison <- read.csv("poison.dat", sep="")
+```
+
+# Effect of weight/type/dose on survival time
+
+## 1. Constructing a multiple regression model
+
+Fit 2 regression models: one with the dose and weight and one with dose and the type of fish. Check which variable (`weight` or `type`) has the largest $t$-value and keep this variable in the model, on condition that that variable is significantly associated with the outcome. Then verify whether the other variable has an additional significant effect.
+
+```{r}
+modela <- lm(log(minsurv) ~ dose + weight, data = poison)
+modelb <- lm(log(minsurv) ~ dose + type, data = poison)
+summary(modela) 
+summary(modelb) 
+```
+
+Variable `weight` has the largest $t$-value. We keep `weight` in the model because it has a significant effect.
+
+Does `type` explain significant extra variation in the response, given that `dose` and `weight` are already in the model?
+
+
+```{r}
+modelc <- lm(log(minsurv) ~ dose + weight + type, data = poison) 
+summary(modelc)
+anova(modelc)
+```
+
+Yes! The $p$-value of the ANOVA F-test has value $3 * 10^{-12}$. The effect of `type` on the survival time is highly significantly ($p < 0.001$) different from 0 at the 5\% significance level, given that `dose` and `weight` are already in the model. Or differently phrased: given that `dose` and `weight` are already in the model, the addition of the `species` effect contributes highly significantly to explaining the variation in survival time.
+
+
+What is the difference between the p-value from `summary(modelc)` and `anova(modelc)`?
+
+
+The p-values for "summary" need to be interpreted as follows: does the corresponding predictor variable explain a significant part of the variation in the response variable, given that all other predictors are already included in the model? Or else: given the model structure, is the effect of the predictor variable on the mean of the response variable significantly different from zero?
+
+The p-values from "anova" are interpreted as: does the corresponding predictor variable explain a significant part of the response variable given that the predictor variables that are above it are already in the model? Or else: given that the predictors above this one are already included in the model, is the effect of this predictor variable on the mean of the response variable significantly different from zero?
+
+Remark that the $p$-value for `type` is the same in both cases (using "summary" and "anova"), while this is not the case for `dose` and `weight`. This is because the p-value for `type` in both cases is conditional on the presence of both the `dose` and `type`-effect in the model.
+
+In summary:
+
+- the $p$-value for `dose` is conditional on the presence of the intercept, the `weight`-effect and the `type`-effect in the model. 
+- the $p$-value for weight is conditional on the presence of the intercept, the `dose`-effect and the `type`-effect in the model. 
+- the $p$-value for type is conditional on the presence of the intercept, the `dose`-effect and the `weight`-effect in the model. 
+
+For anova:
+
+- the $p$-value for `dose` is conditional on the presence of the intercept in the model. 
+- the $p$-value for `weight` is conditional on the presence of the intercept,
+and the `dose` effect in the model. 
+- the $p$-value for `type` is conditional on the
+presence of the intercept, the `dose` effect and the `weight` effect in the
+model.
+
+
+
+## 2. Higher-order terms
+
+Investigate if there are significant higher-order terms (interactions and/or quadratic effects). 
+
+### 2(a). Quadratic effect for weight
+
+```{r}
+modeld <- lm(log(minsurv) ~ dose + weight + I(weight^2) + type, data = poison)
+modele <- lm(log(minsurv) ~ dose + I(dose^2) + weight + type, data = poison)
+summary(modeld)
+summary(modele)
+```
+
+No, there is no significant effect of the square of the weight on the survival time (at the 5\% significance level), given that the dose, weight and type are already in the model (p = 0.28). Adding `sqrweight` does not significantly contribute in explaining the variance in the survival time. We leave the quadratic term for weight out of the model.
+
+### 2(b). Interaction between dose and type
+
+```{r}
+modele <- lm(log(minsurv) ~ dose + weight + type + dose:type, data = poison)
+summary(modele) #not significant -> leave interaction out of model
+```
+
+No, there is no significant effect of the interaction between dose and species on the survival time (at the 5\% significance level), given that dose and type are already in the model (p = 0.74). The addition of the interaction-effect between dose and type doesn't contribute significantly to explaining the variation in the survival time. We leave the interaction term between dose and type out of the model.
+
+Final model:
+
+```{r}
+model_final <- lm(log(minsurv) ~ dose + weight + type, data = poison)
+```
+
+The model selection procedure which we used here is called "forward selection":
+we add variables to the model to see if they are significant. If this is the case we leave them in the model, if not we leave them out. In every step we look at different terms and keep the most significant (highest $t$-value or smallest $p$-value).
+
+## 3. Linear regression assumptions
+
+Report the final model with the regression coefficients and verify the assumptions made for applying this regression analysis.
+
+**Check all the assumptions!**
+
+```{r}
+par(mfrow=c(2,2))
+plot(model_final)
+par(mfrow=c(1,1))
+plot(x=fitted(model_final),y=resid(model_final)^2)
+```
+
+
+1. Independent data
+
+The same as before. The researchers tested 96 fish by placing each fish in a
+barrel with 2 liters of water and a certain dose of the poison. If you assume
+that the randomization has been executed correctly, you can assume independence
+because in a good randomisation observations are chosen independent from each
+other.
+
+2. Linearity between response and predictor (implicates that residuals are
+   distributed around zero)
+   
+To check the linearity assumption, we plot the values of the residuals in
+function of the fitted values. There seems to be a weak quadratic relationship
+between fitted values and residuals.
+
+3. Normally distributed residuals
+
+For this we check the QQ-plot. The residuals seem to be normally distributed
+(the percentiles of the residuals correspond well with the percentiles you
+expect based on the normal distribution).
+
+4. Homoscedasticity
+
+For this we check the graph which plots the fitted values in function of the
+square root of the absolute values of the standardized residuals. If the data
+are homoscedastic, then the mean of the absolute value of standardized
+residuals will always be around the same value, independent of the fitted
+value. A smoother through the point cloud will be almost horizontal and not
+show any clear trend. Here we see the smoother is indeed almost horizontal.
+Only at the higher end of the range, the smoother decreases. Probably this
+only due to one data point at the higher end, so the homoscedasticity
+assumption seems to be fulfilled. 
+
+**Conclusion:** Possibly the linearity assumption is violated. Possibly, a
+higher order effect is at play which is not yet included in the model. If the
+model would be used to predict new observations, it is possible that values at
+the ends of the range would be underestimated, and values at the centre of the
+range would be overestimated. 
+
+
+## 4. Influence dose/weight/type of fish on survival time
+
+Interpret the estimated parameters, in other words, describe to what extent the dose, the weight of the fish, and the type of fish have an influence on the survival time of the fish.
+
+```{r}
+summary(model_final)
+```
+
+ - a. Interpretation of the dose estimate:
+
+For fish of **the same species** and **the same weight** the mean of the
+natural logarithm of the survival time is estimated to decrease with 0.6, with
+every increase of the dose of the poison with 1 mg.
+
+ - Or after backtransformation:
+
+For fish of **the same species** and with **the same weight**, the geometric
+mean of the survival time (in minutes) is estimated to decrease with **a
+factor** $e^{-0.60435} = 0.55$, with every increase of the dose of the poison with 1 mg. 
+
+ - b. Interpretation of the weight estimate:
+
+For fish which weigh 1 gram more than the other fish of **the same species** and
+which were treated with **the same dose of poison**, the mean natural logarithm
+of the survival time is estimated to be 0.82 higher.
+
+ - Or after backtransformation:
+
+For fish which weigh 1 gram more than other fish of the **the same species**
+and which were treated with the **the same dose of poison**, the geometric mean
+of the survival time (in minutes) is estimated to be **a factor**
+$e^{0.82498} = 2.28$ higher.
+
+ - c. Interpretation of the type estimate (given that 0 codes for dojo loaches
+   and 1 for goldfish):
+
+When fish of **the same weight** are treated with **the same dose of poison**,
+the mean natural logarithm of the survival time is estimated to be 0.51 higher
+for goldfish compared with dojo loaches.
+
+ - Or after backtransformation:
+
+When fish of **the same weight** are treated with **the same dose of poison**,
+the geometric mean of the survival time (in minutes) is estimated to be **a
+factor** $e^{0.51248} = 1.69$ higher for gold fish compared with dojo loaches. 
+
+## 5. Multiple correlation coefficient
+
+What can you conclude from the multiple correlation coefficient?
+
+The multiple correlation coefficient $R^2$ is:
+
+$R^2 = \frac{SS_{Regression}}{SS_{Total}}$
+
+In the final model the multiple correlation coefficient is equal to 0.73. This
+means that 73\% of the variation in the data is explained by the association
+with the independent variables dose, weight and type.
